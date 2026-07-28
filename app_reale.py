@@ -10,7 +10,7 @@ import pandas as pd
 import streamlit as st
 
 from io_docenti import leggi_assegnazioni, valida_assegnazioni
-from io_data import scrivi_output
+from io_data import scrivi_output, scrivi_output_per_docente
 from scheduler_reale import genera_orario_reale, GIORNI_DEFAULT, ORE_PER_GIORNO
 
 st.set_page_config(page_title="Orario — Scuola Pier Cironi di Prato", page_icon="🏫", layout="wide")
@@ -165,13 +165,25 @@ if st.session_state.orario:
             st.dataframe(pd.DataFrame(righe).set_index("Ora"), use_container_width=True)
 
     st.header("4. Esporta")
-    buffer = io.BytesIO()
-    scrivi_output(buffer, st.session_state.orario, st.session_state.classi, GIORNI_DEFAULT, ORE_PER_GIORNO)
-    buffer.seek(0)
-    st.download_button(
-        "💾 Scarica orario in Excel", data=buffer, file_name="orario_generato.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
+    col_a, col_b = st.columns(2)
+
+    with col_a:
+        buffer = io.BytesIO()
+        scrivi_output(buffer, st.session_state.orario, st.session_state.classi, GIORNI_DEFAULT, ORE_PER_GIORNO)
+        buffer.seek(0)
+        st.download_button(
+            "💾 Scarica orario per classe", data=buffer, file_name="orario_per_classe.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
+    with col_b:
+        buffer_doc = io.BytesIO()
+        scrivi_output_per_docente(buffer_doc, st.session_state.orario, GIORNI_DEFAULT, ORE_PER_GIORNO)
+        buffer_doc.seek(0)
+        st.download_button(
+            "👨‍🏫 Scarica orario per docente", data=buffer_doc, file_name="orario_per_docente.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
 
 st.markdown(
     """

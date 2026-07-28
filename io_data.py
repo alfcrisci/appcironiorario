@@ -181,3 +181,73 @@ def scrivi_output(path, orario, classi, giorni, ore_per_giorno):
         wb.save(path)
     except Exception as e:
         raise ValueError(f"Impossibile salvare il file: {e}")
+
+
+def scrivi_output_per_docente(path, orario, giorni, ore_per_giorno):
+    """Scrive l'orario in un Excel con un foglio per DOCENTE invece che per
+    classe: per ogni docente mostra quali classi insegna in ciascuno slot.
+
+    orario: dict {classe: {(giorno, ora): "Materia (Docente) [Aula: X]"}}
+    (stesso formato prodotto da scheduler.py / scheduler_scuola.py / scheduler_reale.py)
+    """
+    orario_docenti = {}
+    for classe, slots in orario.items():
+        for (g, h), valore in slots.items():
+            try:
+                materia = valore.split(" (")[0]
+                docente = valore.split("(")[1].split(")")[0]
+                aula = valore.split("Aula: ")[1].rstrip("]")
+            except IndexError:
+                continue
+            orario_docenti.setdefault(docente, {})[(g, h)] = f"{materia} - {classe} [Aula: {aula}]"
+
+    docenti = sorted(orario_docenti.keys())
+
+    wb = Workbook()
+    if "Sheet" in wb.sheetnames:
+        wb.remove(wb["Sheet"])
+
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill("solid", start_color="4472C4")
+    center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    thin = Side(style="thin", color="AAAAAA")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    for docente in docenti:
+        sheet_name = docente[:31]
+        ws = wb.create_sheet(sheet_name)
+
+        ws.cell(row=1, column=1, value="Ora")
+        for j, g in enumerate(giorni, start=2):
+            ws.cell(row=1, column=j, value=g)
+        for col in range(1, len(giorni) + 2):
+            cell = ws.cell(row=1, column=col)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = center
+            cell.border = border
+
+        dati_docente = orario_docenti.get(docente, {})
+        for h in range(ore_per_giorno):
+            cell_ora = ws.cell(row=h + 2, column=1, value=h + 1)
+            cell_ora.alignment = center
+            cell_ora.border = border
+            for j, g in enumerate(giorni, start=2):
+                valore = dati_docente.get((g, h), "")
+                cell = ws.cell(row=h + 2, column=j, value=valore)
+                cell.alignment = center
+                cell.border = border
+                if valore:
+                    cell.font = Font(bold=True)
+                    cell.fill = PatternFill("solid", start_color="EAF1FB")
+
+        ws.column_dimensions["A"].width = 8
+        for j in range(2, len(giorni) + 2):
+            ws.column_dimensions[chr(64 + j)].width = 28
+        for r in range(2, ore_per_giorno + 2):
+            ws.row_dimensions[r].height = 30
+
+    try:
+        wb.save(path)
+    except Exception as e:
+        raise ValueError(f"Impossibile salvare il file: {e}")
